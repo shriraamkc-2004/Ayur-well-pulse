@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: ayurwell-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set}
+      MONGO_INITDB_DATABASE: ayurwell
+    # Port 27017 is NOT exposed to host — only accessible within the Docker network
+    expose:
+      - "27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ayurwell-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: ayurwell-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD}@mongodb:27017/ayurwell?authSource=admin
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET must be set}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}
+      - ENCRYPTION_SALT=${ENCRYPTION_SALT:?ENCRYPTION_SALT must be set}
+      - COOKIE_SECRET=${COOKIE_SECRET:?COOKIE_SECRET must be set}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8080}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - ayurwell-network
+    volumes:
+      - ./server/logs:/app/logs
+
+volumes:
+  mongodb_data:
+
+networks:
+  ayurwell-network:
+    driver: bridge

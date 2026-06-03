@@ -1,0 +1,100 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Backend Tests
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+      
+      - name: Run linter
+        working-directory: ./server
+        run: npm run lint
+      
+      - name: Run tests
+        working-directory: ./server
+        run: npm test
+        env:
+          MONGODB_URI: mongodb://localhost:27017/ayurwell-test
+          JWT_SECRET: ci-test-secret-key-minimum-64-characters-long-for-testing-purposes-only
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-minimum-64-characters-long-for-testing
+          ENCRYPTION_KEY: ci-test-encryption-key-32-chars
+          ENCRYPTION_SALT: ci-test-salt
+          COOKIE_SECRET: ci-test-cookie-secret-32-characters
+      
+      - name: Run security audit
+        working-directory: ./server
+        run: npm audit --audit-level=high
+
+  # Frontend Tests
+  frontend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Type check and build
+        run: npm run build
+      
+      - name: Run linter
+        run: npm run lint
+
+  # Build and Deploy (only on main branch)
+  deploy:
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Render (Backend)
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        run: curl -X POST "${{ env.RENDER_DEPLOY_HOOK_URL }}"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      
+      - name: Deploy to Vercel (Frontend)
+        if: env.VERCEL_TOKEN != ''
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

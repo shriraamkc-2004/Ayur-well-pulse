@@ -1,0 +1,22 @@
+{
+  "name": "ayurwell-tests",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "jest --detectOpenHandles --forceExit",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "**/*.js",
+      "!node_modules/**",
+      "!coverage/**",
+      "!logs/**"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  }
+}
