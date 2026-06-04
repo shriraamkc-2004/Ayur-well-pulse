@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { authAPI } from "@/services/api";
 import { toast } from "sonner";
 import { RoleSelection } from "@/components/role-selection";
 import { useI18n } from "@/context/I18nContext";
@@ -31,26 +32,13 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, fullName, role }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        login(data.accessToken, data.user);
-        toast.success(t('account_created_success'));
-        redirectBasedOnRole(data.user.role);
-      } else {
-        toast.error(data.error || t('signup_failed'));
-      }
-    } catch (error) {
-      // Mock fallback so the user can test the UI even if the backend/DB is down
-      toast.success("Mock account created (Backend disconnected)");
-      const userRole = role || 'patient';
-      login("mock-token-123", { id: '1', role: userRole, fullName: fullName || 'Test User', email });
-      redirectBasedOnRole(userRole);
+      const { data } = await authAPI.signup({ email, password, fullName, role });
+      login(data.accessToken, data.user);
+      toast.success(t('account_created_success'));
+      redirectBasedOnRole(data.user.role);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Signup failed';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -61,26 +49,13 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        login(data.accessToken, data.user);
-        toast.success(t('welcome'));
-        redirectBasedOnRole(data.user.role);
-      } else {
-        toast.error(data.error || t('login_failed'));
-      }
-    } catch (error) {
-      // Mock fallback so the user can test the UI even if the backend/DB is down
-      toast.success("Mock login successful (Backend disconnected)");
-      const userRole = role || 'patient';
-      login("mock-token-123", { id: '1', role: userRole, fullName: 'Test User', email });
-      redirectBasedOnRole(userRole);
+      const { data } = await authAPI.login({ email, password });
+      login(data.accessToken, data.user);
+      toast.success(t('welcome'));
+      redirectBasedOnRole(data.user.role);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Login failed';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
