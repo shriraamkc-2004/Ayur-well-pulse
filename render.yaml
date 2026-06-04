@@ -19,9 +19,9 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
-        value: "15m"
+        value: "1h"
       - key: JWT_REFRESH_EXPIRATION
-        value: "7d"
+        value: "30d"
       - key: ENCRYPTION_KEY
         generateValue: true
       - key: ENCRYPTION_SALT

@@ -12,13 +12,13 @@ const generateTokens = (userId, role) => {
   const accessToken = jwt.sign(
     { id: userId, role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRATION || '15m' }
+    { expiresIn: process.env.JWT_EXPIRATION || '1h' }
   );
   
   const refreshToken = jwt.sign(
     { id: userId },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRATION || '7d' }
+    { expiresIn: process.env.JWT_REFRESH_EXPIRATION || '30d' }
   );
   
   return { accessToken, refreshToken };
@@ -76,7 +76,7 @@ router.post('/signup', signupValidation, async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     res.status(201).json({ 
@@ -135,7 +135,7 @@ router.post('/login', loginValidation, async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     res.json({ 
@@ -183,7 +183,7 @@ router.post('/refresh', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
     
     logger.debug(`Token refreshed (rotated) for user: ${user.id}`, { userId: user.id });
