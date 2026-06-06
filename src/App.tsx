@@ -34,8 +34,8 @@ const LoadingFallback = () => (
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
-const App = () => (
-  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+const App = () => {
+  const content = (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <I18nProvider>
@@ -78,7 +78,11 @@ const App = () => (
         </I18nProvider>
       </AuthProvider>
     </QueryClientProvider>
-  </GoogleOAuthProvider>
-);
+  );
+
+  return GOOGLE_CLIENT_ID
+    ? <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{content}</GoogleOAuthProvider>
+    : content;
+};
 
 export default App;
