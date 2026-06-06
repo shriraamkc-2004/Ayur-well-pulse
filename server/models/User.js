@@ -3,7 +3,8 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    password: { type: String, required: false },
+    googleId: { type: String, unique: true, sparse: true },
     fullName: { type: String },
     role: {
         type: String,
@@ -15,12 +16,13 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true }); // Mongoose manages createdAt and updatedAt automatically
 
 userSchema.pre('save', async function () {
-    if (!this.isModified('password')) return;
+    if (!this.isModified('password') || !this.password) return;
     const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
     this.password = await bcrypt.hash(this.password, saltRounds);
 });
 
 userSchema.methods.comparePassword = function (candidatePassword) {
+    if (!this.password) return Promise.resolve(false);
     return bcrypt.compare(candidatePassword, this.password);
 };
 

@@ -89,7 +89,10 @@ export const authAPI = {
   
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
-  
+
+  googleLogin: (credential: string, role?: string) =>
+    api.post('/auth/google', { credential, role }),
+
   logout: () =>
     api.post('/auth/logout'),
   

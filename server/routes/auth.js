@@ -2,10 +2,13 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { logEvent } = require('../middleware/logger');
 const logger = require('../utils/logger');
 const { ValidationError, AuthenticationError } = require('../utils/errors');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Generate JWT tokens
 const generateTokens = (userId, role) => {
@@ -28,11 +31,7 @@ const generateTokens = (userId, role) => {
 const signupValidation = [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('password')
-    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
-    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
-    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
-    .matches(/[0-9]/).withMessage('Password must contain at least one number')
-    .matches(/[^A-Za-z0-9]/).withMessage('Password must contain at least one special character'),
+    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('fullName').trim().isLength({ min: 2 }).withMessage('Full name is required'),
   body('role').optional().isIn(['patient', 'dietitian', 'doctor', 'admin']).withMessage('Invalid role')
 ];
@@ -152,6 +151,71 @@ router.post('/login', loginValidation, async (req, res) => {
     res.status(error.statusCode || 500).json({ 
       error: error.message,
       details: error.details || null
+    });
+  }
+});
+
+// @route   POST api/auth/google
+// @desc    Login or signup with Google OAuth
+router.post('/google', async (req, res) => {
+  try {
+    const { credential, role = 'patient' } = req.body;
+    if (!credential) {
+      throw new ValidationError('Google credential is required');
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        email,
+        fullName: name || email.split('@')[0],
+        googleId,
+        avatarUrl: picture,
+        role,
+      });
+      await user.save();
+      logger.info(`Google user registered: ${user.id}`, { userId: user.id, role });
+      await logEvent(user.id, 'USER_SIGNUP_GOOGLE', user.id, 'User', { role }, req);
+    } else if (!user.googleId) {
+      user.googleId = googleId;
+      if (picture && !user.avatarUrl) user.avatarUrl = picture;
+      await user.save();
+    }
+
+    await logEvent(user.id, 'USER_LOGIN_GOOGLE', user.id, 'User', {}, req);
+    logger.info(`Google login: ${user.id}`, { userId: user.id });
+
+    const { accessToken, refreshToken } = generateTokens(user.id, user.role);
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    logger.error('Google login error', { error: error.message });
+    res.status(error.statusCode || 500).json({
+      error: error.message || 'Google login failed'
     });
   }
 });
