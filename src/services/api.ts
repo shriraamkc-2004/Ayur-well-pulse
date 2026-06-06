@@ -66,11 +66,16 @@ api.interceptors.response.use(
       const errorData = error.response.data as Record<string, unknown>;
       errorMessage = (errorData?.error as string) || 'An error occurred';
       
-      // Show toast for client errors
-      if (error.response.status >= 400 && error.response.status < 500) {
-        toast.error(errorMessage);
-      } else if (error.response.status >= 500) {
-        toast.error('Server error. Please try again later.');
+      // Skip toast for auth endpoints — Auth.tsx handles those with detailed messages
+      const isAuthEndpoint = originalRequest.url?.includes('/auth/');
+      
+      if (!isAuthEndpoint) {
+        // Show toast for client errors
+        if (error.response.status >= 400 && error.response.status < 500) {
+          toast.error(errorMessage);
+        } else if (error.response.status >= 500) {
+          toast.error('Server error. Please try again later.');
+        }
       }
     } else if (error.request) {
       toast.error('Network error. Please check your connection.');
