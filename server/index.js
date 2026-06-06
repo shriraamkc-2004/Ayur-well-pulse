@@ -73,13 +73,15 @@ const generalLimiter = rateLimit({
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, ip: false }
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 20,
-  message: { error: 'Too many authentication attempts, please try again later' }
+  message: { error: 'Too many authentication attempts, please try again later' },
+  validate: { xForwardedForHeader: false, ip: false }
 });
 
 app.use('/api/auth/', authLimiter);
@@ -229,6 +231,12 @@ app.use((req, res, next) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
+  // Handle malformed JSON body (bad curl request, etc.)
+  if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && err.status === 400 && 'body' in err)) {
+    logger.warn('Malformed JSON in request body', { url: req.originalUrl, method: req.method });
+    return res.status(400).json({ status: 'error', error: 'Invalid JSON in request body' });
+  }
+
   logger.error('Unhandled error:', {
     message: err.message,
     stack: err.stack,
