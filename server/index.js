@@ -36,6 +36,10 @@ if (!process.env.JWT_REFRESH_SECRET) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const app = express();
+
+// Trust proxy — required behind Render's reverse proxy for correct IP detection
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 5000;
 const server = createServer(app);
 
