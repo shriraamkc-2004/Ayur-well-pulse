@@ -24,10 +24,18 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-ui": ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-tabs", "@radix-ui/react-select", "@radix-ui/react-scroll-area"],
-          "vendor-utils": ["axios", "@tanstack/react-query", "sonner", "lucide-react"],
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react-router')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('axios') || id.includes('@tanstack') || id.includes('sonner') || id.includes('lucide-react')) {
+              return 'vendor-utils';
+            }
+          }
         },
       },
     },
