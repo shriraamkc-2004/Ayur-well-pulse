@@ -146,6 +146,11 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root Endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({ message: 'Ayur-Well Pulse API is running. Access endpoints at /api/*' });
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/doctors', require('./routes/doctors'));

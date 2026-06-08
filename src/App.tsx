@@ -1,4 +1,6 @@
 import { lazy, Suspense } from "react";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -41,6 +43,8 @@ const App = () => (
         <I18nProvider>
           <TooltipProvider>
             <Toaster />
+            <Analytics />
+            <SpeedInsights />
             <BrowserRouter>
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
