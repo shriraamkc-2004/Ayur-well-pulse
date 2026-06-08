@@ -242,6 +242,13 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ status: 'error', error: 'Invalid JSON in request body' });
   }
 
+  // Don't log 404s as errors — they're expected (health probes, bots, etc.)
+  const statusCode = err.statusCode || 500;
+  if (statusCode === 404) {
+    logger.debug(`404: ${req.method} ${req.originalUrl}`);
+    return res.status(404).json({ status: 'error', error: 'Route not found' });
+  }
+
   logger.error('Unhandled error:', {
     message: err.message,
     stack: err.stack,
@@ -249,7 +256,6 @@ app.use((err, req, res, next) => {
     method: req.method
   });
   
-  const statusCode = err.statusCode || 500;
   const message = process.env.NODE_ENV === 'production' && statusCode === 500 
     ? 'Internal server error' 
     : err.message;
