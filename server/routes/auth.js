@@ -186,10 +186,8 @@ router.post('/google', async (req, res) => {
     const { email, name, picture, sub: googleId } = payload;
 
     let user = await User.findOne({ email });
-    let isNewUser = false;
 
     if (!user) {
-      isNewUser = true;
       user = new User({
         email,
         fullName: name || email.split('@')[0],
