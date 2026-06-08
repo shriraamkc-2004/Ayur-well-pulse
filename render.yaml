@@ -36,3 +36,15 @@ services:
         value: "100"
       - key: AUTH_RATE_LIMIT_MAX
         value: "20"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: FRONTEND_URL
+        value: "https://ayur-well-pulse.vercel.app"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false

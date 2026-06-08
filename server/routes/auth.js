@@ -7,6 +7,7 @@ const User = require('../models/User');
 const { logEvent } = require('../middleware/logger');
 const logger = require('../utils/logger');
 const { ValidationError, AuthenticationError } = require('../utils/errors');
+const { sendWelcomeEmail, sendLoginNotificationEmail } = require('../utils/email');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -67,6 +68,11 @@ router.post('/signup', signupValidation, async (req, res) => {
     await logEvent(user.id, 'USER_SIGNUP', user.id, 'User', { role }, req);
     logger.info(`New user registered: ${user.id}`, { userId: user.id, role });
 
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(user.email, user.fullName).catch(err =>
+      logger.warn('Welcome email failed', { error: err.message })
+    );
+
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user.id, user.role);
 
@@ -126,6 +132,11 @@ router.post('/login', loginValidation, async (req, res) => {
     await logEvent(user.id, 'USER_LOGIN', user.id, 'User', {}, req);
     logger.info(`User logged in: ${user.id}`, { userId: user.id });
 
+    // Send login notification email (non-blocking)
+    sendLoginNotificationEmail(user.email, user.fullName, req.ip).catch(err =>
+      logger.warn('Login notification email failed', { error: err.message })
+    );
+
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user.id, user.role);
 
@@ -156,7 +167,7 @@ router.post('/login', loginValidation, async (req, res) => {
 });
 
 // @route   POST api/auth/google
-// @desc    Login or signup with Google OAuth
+// @desc    Login or signup with Google OAuth (accepts access token from frontend)
 router.post('/google', async (req, res) => {
   try {
     const { credential, role = 'patient' } = req.body;
@@ -164,17 +175,21 @@ router.post('/google', async (req, res) => {
       throw new ValidationError('Google credential is required');
     }
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+    // Use access token to fetch user info from Google
+    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${credential}` },
     });
-
-    const payload = ticket.getPayload();
+    if (!userInfoRes.ok) {
+      throw new AuthenticationError('Invalid Google token');
+    }
+    const payload = await userInfoRes.json();
     const { email, name, picture, sub: googleId } = payload;
 
     let user = await User.findOne({ email });
+    let isNewUser = false;
 
     if (!user) {
+      isNewUser = true;
       user = new User({
         email,
         fullName: name || email.split('@')[0],
@@ -185,6 +200,10 @@ router.post('/google', async (req, res) => {
       await user.save();
       logger.info(`Google user registered: ${user.id}`, { userId: user.id, role });
       await logEvent(user.id, 'USER_SIGNUP_GOOGLE', user.id, 'User', { role }, req);
+      // Send welcome email for new Google users
+      sendWelcomeEmail(user.email, user.fullName).catch(err =>
+        logger.warn('Welcome email failed (Google)', { error: err.message })
+      );
     } else if (!user.googleId) {
       user.googleId = googleId;
       if (picture && !user.avatarUrl) user.avatarUrl = picture;
